@@ -1,8 +1,8 @@
-addpath(genpath('./'));
+addpath(genpath('./'));                     % add the whole directory to path, if not already done
 
 %% SET PARAMETERS
-c0 = 1;                             		% speed of light m/s (normalized to 1)
-lambda0 = 2;                        		% central wavelength (um)
+c0 = 1;                                     % speed of light m/s (normalized to 1)
+lambda0 = 2;                                % central wavelength (um)
 
 skip = 1;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
 display_plots = true;                       % plotting during the run?
@@ -11,7 +11,7 @@ display_plots = true;                       % plotting during the run?
 alpha = 1e3;                                % step size in permittivity (~1e2-1e4 works well)
 a = 2.9;                                    % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 2000;                             		% number of iterations
+N = 2000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions
 starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
@@ -40,9 +40,9 @@ dlx = lambda0/grids_in_lam;                 % grid size along electron trajector
 dly  = dlx;                                 % spacing in the perpendicular direction
 
 pos_src = floor(npml+grids_in_lam/4);       % number of grid points between left edge and source
-spc_pts = floor(grids_in_lam/4);		    % number of grid points between source and structure
+spc_pts = floor(grids_in_lam/4);            % number of grid points between source and structure
 gap_pts = floor(gap_nm/1000/dlx);           % number of grid points in the gap
-Lpts = round(L/dlx);						% number of points in the optimization region
+Lpts = round(L/dlx);                        % number of points in the optimization region
 
 Nx = ceil(lambda0*beta/dlx);                % number of grid points in x
 Ny = gap_pts+2*(pos_src + Lpts + spc_pts);  % number of grid points perpendicular to trajectory
