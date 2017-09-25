@@ -7,7 +7,7 @@ The code produces two separate structures:
 - optimized for maximum acceleration gradient divided by the maximum electric field amplitude (either in material or design region).
 
 ## Paper information
-This code was used to for work related to this paper:
+This code was used in work related to this paper:
 
 [Method for Computationally Efficient Design of Dielectric Laser Accelerator Structures](https://www.osapublishing.org/oe/abstract.cfm?uri=oe-25-13-15414 "Method for Computationally Efficient Design of Dielectric Laser Accelerator Structures")
 
