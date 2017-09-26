@@ -12,7 +12,7 @@ This code was used in work related to this paper:
 [Method for Computationally Efficient Design of Dielectric Laser Accelerator Structures](https://www.osapublishing.org/oe/abstract.cfm?uri=oe-25-13-15414 "Method for Computationally Efficient Design of Dielectric Laser Accelerator Structures")
 
 ## How to run simulation
-Just run the script "optimization.m".  The FDFD code and sparse matrix LU-factoring code is located in "dependencies/".
+Just run the script "optimize.m".  The FDFD code and sparse matrix LU-factoring code is located in "dependencies/".
 The entire directory needs to be added to the path to work correctly
 
 ## Citing our work

@@ -4,19 +4,19 @@ addpath(genpath('./'));                     % add the whole directory to path, i
 c0 = 1;                                     % speed of light m/s (normalized to 1)
 lambda0 = 2;                                % central wavelength (um)
 
-skip = 1;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
+skip = 10;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
 display_plots = true;                       % plotting during the run?
 
 
 alpha = 1e3;                                % step size in permittivity (~1e2-1e4 works well)
-a = 2.9;                                    % smooth-max weight factor (see paper)
+a = 10;                                    % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 2000;                                   % number of iterations
+N = 1000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions
-starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
+starting = 2;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
-grids_in_lam = 200;                         % number of grid points in a free space wavelength
+grids_in_lam = 100;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
 L = 3;                                      % size of optimization region (um)
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
@@ -33,7 +33,7 @@ eps = 1.4381^2;      % fused silica 2um
 
 nmax = sqrt(eps);    % refractive index of material region
 
-gamma = 0*0.99;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
+gamma = 1*0.999;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
 
 %% SET OTHER CONSTANTS (DON'T CHANGE)
 dlx = lambda0/grids_in_lam;                 % grid size along electron trajectory axis
@@ -51,7 +51,7 @@ nx = floor(Nx/2);
 ny = floor(Ny/2);
     
 % First compute G maximization, then do G/E_max maximization (for comparison)
-for min_G_Emax = (0:1)
+for min_G_Emax = (1:1)
 
     alpha = alpha + 1e1*min_G_Emax;         % reset step size based on which optimization is being done (different objective functions)
     
@@ -94,7 +94,7 @@ for min_G_Emax = (0:1)
                 if (starting == 1)
                     ER(i,j) = rand*(eps-1)+1;
                 elseif (starting == 2)                
-                    ER(i,j) = eps/2+0.1;
+                    ER(i,j) = eps/2+0.5;
                 else
                 end
             end
@@ -163,9 +163,7 @@ for min_G_Emax = (0:1)
             E_abs = delta_device.*sqrt(abs(Ex).^2 + abs(Ey).^2);
         end        
 
-        % Turn Ex and Ey into vectors.  (BUG!!!!!!!)
-        %Ex_vec = reshape(delta_device.*Ex,[Nx*Ny,1]); 
-        %Ey_vec = reshape(delta_device.*Ex,[Nx*Ny,1]); 
+        % Turn Ex and Ey into vectors.
         Ex_vec = reshape(delta_device.*Ex,[Nx*Ny,1]); 
         Ey_vec = reshape(delta_device.*Ey,[Nx*Ny,1]); 
 
@@ -310,8 +308,9 @@ for min_G_Emax = (0:1)
     end
 
     % force the permittivity distribution binary
-    ER(ER<eps/2) = 1;
-    ER(ER>=eps/2) = eps;
+    eps_avg = (eps+1)/2;
+    ER(ER<eps_avg) = 1;
+    ER(ER>=eps_avg) = eps;
     
     % do another simulation of the binary distribution
     [fields, extra] = FDFD_TFSF(ER,MuR,RES,NPML,BC,lambda0,Pol,b,kinc);
@@ -320,7 +319,7 @@ for min_G_Emax = (0:1)
 
     % compute the gradient
     g = sum(sum(eta.*Ex));
-    G = real(g);
+    G = abs(g);
 
     % get the maximum fields in material and optimization region
     E_abs = delta_device.*sqrt(abs(Ex).^2 + abs(Ey).^2);
