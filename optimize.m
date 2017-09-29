@@ -120,8 +120,16 @@ for min_G_Emax = (0:1)
 
     figure(1);                  % open a figure to plot
     
+    if ~min_G_Emax
+        display('working on gradient maximized structure');
+    else
+        display('working on acceleration factor maximized structure');
+    end    
+    upd = textprogressbar(N);
+    
     for j = (1:N)
 
+        upd(j);
         % original simulation (structure in accelerator mode)
         [fields, extra] = FDFD_TFSF(ER,MuR,RES,NPML,BC,lambda0,Pol,b,kinc);
         % get fields
@@ -235,7 +243,7 @@ for min_G_Emax = (0:1)
 
         % plot stuff without too much hastle, display % done
         if (display_plots && mod(j,skip) == 0)
-                perc_done = j/N*100
+            %    perc_done = j/N*100
             clf;         
             subplot(2,2,1);
             disp = [];
@@ -245,16 +253,17 @@ for min_G_Emax = (0:1)
 
             imagesc(disp,[1,eps])
             colormap(flipud(gray))    
+            title('relative permittivity')                        
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
             set(gca,'FontSize',22,'fontWeight','normal')    
             colorbar()
-            title('\epsilon');
-
+            
             subplot(2,2,2);
             colorbar()
             plot(Gs(1:j),'k');
             xlabel('iteration number')
             ylabel('gradient (E_0)')
+            title('acceleration gradient at \phi = 0')            
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
             set(gca,'FontSize',22,'fontWeight','normal')
 
@@ -264,6 +273,7 @@ for min_G_Emax = (0:1)
             plot((1:j),G_by_Sa(1:j));
             xlabel('iteration number')
             ylabel('G/|E|max')
+            title('acceleration factor')
             legend({'actual','smooth-max'})           
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
             set(gca,'FontSize',22,'fontWeight','normal')
@@ -274,9 +284,11 @@ for min_G_Emax = (0:1)
             plot((1:j),zeros(j,1));
             xlabel('iteration number');
             ylabel('\phi');
-            legend({'computed','\phi=0 (target)'})           
+            legend({'computed','\phi=0 (target)'})       
+            title('acceleration phase (\phi)')                        
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
             set(gca,'FontSize',22,'fontWeight','normal')  
+            
             pause(0.001);
         end
     end
