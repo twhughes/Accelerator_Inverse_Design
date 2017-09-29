@@ -11,14 +11,14 @@ display_plots = true;                       % plotting during the run?
 alpha = 5e2;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 2500;                                   % number of iterations
+N = 5000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
 starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
-grids_in_lam = 200;                         % number of grid points in a free space wavelength
+grids_in_lam = 100;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
-L = 1.5;                                      % size of optimization region (um)
+L = 1.0;                                      % size of optimization region (um)
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
 % can diverge.  This is because there are many degrees of freedom and
 % resonance can occur very strongly. Need to try different values and see
@@ -262,18 +262,19 @@ for min_G_Emax = (0:1)
             plot((1:j),G_by_Es(1:j));
             hold all;
             plot((1:j),G_by_Sa(1:j));
-
-            xlabel('iteration number');
-            ylabel('G/E_max');
-            %imagesc(real(Ex_aj*exp(1i*phi)),[-0.01,0.01]);
+            xlabel('iteration number')
+            ylabel('G/|E|max')
+            legend({'actual','smooth-max'})           
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
-            set(gca,'FontSize',22,'fontWeight','normal')  
-
+            set(gca,'FontSize',22,'fontWeight','normal')
+            
+            
             subplot(2,2,4); hold all;
             plot((1:j),phis(1:j));
             plot((1:j),zeros(j,1));
             xlabel('iteration number');
             ylabel('\phi');
+            legend({'computed','\phi=0 (target)'})           
             set(findall(gcf,'type','text'),'FontSize',22,'fontWeight','normal')
             set(gca,'FontSize',22,'fontWeight','normal')  
             pause(0.001);
