@@ -4,21 +4,21 @@ addpath(genpath('./'));                     % add the whole directory to path, i
 c0 = 1;                                     % speed of light m/s (normalized to 1)
 lambda0 = 2;                                % central wavelength (um)
 
-skip = 4;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
+skip = 10;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
 display_plots = true;                       % plotting during the run?
 
 
-alpha = 5e2;                                % step size in permittivity (~1e2-1e4 works well)
+alpha = 1e2;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 2500;                                   % number of iterations
+N = 1000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
 starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
-grids_in_lam = 200;                         % number of grid points in a free space wavelength
+grids_in_lam = 50;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
-L = 1.5;                                      % size of optimization region (um)
+L = 1;                                      % size of optimization region (um)
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
 % can diverge.  This is because there are many degrees of freedom and
 % resonance can occur very strongly. Need to try different values and see
@@ -26,8 +26,8 @@ L = 1.5;                                      % size of optimization region (um)
 npml = 10;                                  % number of PML (absorbing region) points (need > 10 at least)
 
 % relative permittivity of material region.  uncomment to select
-eps = 3.4363^2;     % Si 2um
-%eps = 1.4381^2;      % fused silica 2um
+%eps = 3.4363^2;     % Si 2um
+eps = 1.4381^2;      % fused silica 2um
 %eps = 1.9834^2;     % Si3N4
 %eps = 1.9^2;        % GaOx
 
@@ -52,6 +52,8 @@ ny = floor(Ny/2);
     
 % First compute G maximization, then do G/E_max maximization (for comparison)
 for min_G_Emax = (0:1)
+
+    alpha = alpha + 1e1*min_G_Emax;         % reset step size based on which optimization is being done (different objective functions)
     
     %% This section defines the input parameters that my FDFD code needs to run.
     %  see the FDFD.m code or FDFD_TFSF.m for a more detailed explanation.
@@ -161,33 +163,37 @@ for min_G_Emax = (0:1)
             E_abs = delta_device.*sqrt(abs(Ex).^2 + abs(Ey).^2);
         end        
 
+        % Turn Ex and Ey into vectors.
+        Ex_vec = reshape(delta_device.*Ex,[Nx*Ny,1]); 
+        Ey_vec = reshape(delta_device.*Ey,[Nx*Ny,1]); 
+
         % compute auxiliary vectors for later.  (too complicated to explain
         % here.  ask me in person if you're interested).
-        x_abs = E_abs(:);
-        alpha_vec = exp(x_abs*a);
+        x_bar = E_abs(:);
+        alpha_vec = exp(x_bar*a);
         alpha_T_1 = sum(alpha_vec);
-        Sa = sum(alpha_vec.*x_abs)/alpha_T_1;
+        sigma_old = alpha_vec/alpha_T_1 + a*(alpha_vec.*x_bar)/alpha_T_1 - a*(sum(alpha.*x_bar)*alpha)/alpha_T_1/alpha_T_1;
+        Sa = sum(alpha_vec.*x_bar)/alpha_T_1;
 
-        X_vec = conj(Ex(:))./x_abs;
-        Y_vec = conj(Ey(:))./x_abs;
+        %P = diag(1./x_bar);    
+        %e = [Ex(:); Ey(:)];
+        %R = P*Q*diag(conj(e));
 
+        X_vec = conj(Ex(:))./x_bar;
+        Y_vec = conj(Ey(:))./x_bar;
+        X_vec(isinf(X_vec)) = 0;
+        Y_vec(isinf(Y_vec)) = 0;
 
-        x = [Ex(:); Ey(:)];
-        P = [speye(Nx*Ny) speye(Nx*Ny)]; 
-        z = conj(x./[x_abs;x_abs]);
-        z(isnan(z)) = 0;
-        z(isinf(z)) = 0;
-        spdiagz = spdiags(z,0,Nx*Ny*2,Nx*Ny*2);
-        
-        R = (P*spdiagz);
-        %R(isnan(R)) =  0;
-        %R = [diag(z(1:Nx*Ny)) diag(z(Nx*Ny+1:end))];
-        S = real(1/alpha_T_1*(speye(Nx*Ny) + a*spdiags(x_abs,0,Nx*Ny,Nx*Ny) - a*sum(alpha_vec.*x_abs)/alpha_T_1*speye(Nx*Ny)));
-        sigma = transpose(alpha_vec)*S*R;
-        sigma(isnan(sigma)) = 0;
-        b_aj1 = transpose(G/Sa^2*sigma);
+        sigma = [alpha_vec.*X_vec; alpha_vec.*Y_vec]/alpha_T_1 + a*([(alpha_vec.*x_bar).*X_vec;(alpha_vec.*x_bar).*Y_vec])/alpha_T_1 - a*(sum(alpha.*x_bar)*dlx*[alpha.*X_vec; alpha.*Y_vec])/alpha_T_1/alpha_T_1;
+
+        %R = [diag(X_vec) diag(Y_vec)];
+        %R(isnan(R)) = 0;
+        %R_T = transpose(R);
+
+        % compute adjoint terms for both gradient and E_max
+        b_aj1 = real(g)/Sa^2*sigma;
         b_aj2 = -eta_aj/Sa;
-        
+
         % construct final adjoint source
         if (min_G_Emax)
             b_aj = b_aj1 + b_aj2;
@@ -342,8 +348,5 @@ end
 
 % display the percent improvements (in optimization regions and in
 % materials)
-perc_improvement = (n_p-n_o)/n_o*100;
-perc_improvement_mat = (n_mat_p-n_mat_o)/n_mat_o*100;
-
-display(['percent improvement in acceleration factor in design region = ', num2str(perc_improvement), ' %']);
-display(['percent improvement in acceleration factor in material region = ', num2str(perc_improvement_mat), ' %']);
+perc_improvement = (n_p-n_o)/n_o*100
+perc_improvement_mat = (n_mat_p-n_mat_o)/n_mat_o*100
