@@ -8,17 +8,18 @@ skip = 4;                                   % number of iteration frames between
 display_plots = true;                       % plotting during the run?
 
 
-alpha = 5e2;                                % step size in permittivity (~1e2-1e4 works well)
+alpha = 1e0;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 500;                                   % number of iterations
+N = 50000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
-starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
+starting = 2;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
 grids_in_lam = 50;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
 L = 1.0;                                      % size of optimization region (um)
+grating_width_nm = 20;
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
 % can diverge.  This is because there are many degrees of freedom and
 % resonance can occur very strongly. Need to try different values and see
@@ -28,12 +29,12 @@ npml = 10;                                  % number of PML (absorbing region) p
 % relative permittivity of material region.  uncomment to select
 eps = 3.4363^2;     % Si 2um
 %eps = 1.4381^2;      % fused silica 2um
-eps = 1.9834^2;     % Si3N4
+%eps = 1.9834^2;     % Si3N4
 %eps = 1.9^2;        % GaOx
 
 nmax = sqrt(eps);    % refractive index of material region
 
-gamma = 1*0.9;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
+gamma = 0*0.9999999;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
 
 %% SET OTHER CONSTANTS (DON'T CHANGE)
 dlx = lambda0/grids_in_lam;                 % grid size along electron trajectory axis
@@ -42,10 +43,11 @@ dly  = dlx;                                 % spacing in the perpendicular direc
 pos_src = floor(npml+grids_in_lam/4);       % number of grid points between left edge and source
 spc_pts = floor(grids_in_lam/4);            % number of grid points between source and structure
 gap_pts = floor(gap_nm/1000/dlx);           % number of grid points in the gap
+grat_pts = floor(grating_width_nm/100/dlx); % number of grid points between optimization region and gap
 Lpts = round(L/dlx);                        % number of points in the optimization region
 
 Nx = ceil(lambda0*beta/dlx);                % number of grid points in x
-Ny = gap_pts+2*(pos_src + Lpts + spc_pts);  % number of grid points perpendicular to trajectory
+Ny = gap_pts+2*(pos_src + Lpts + spc_pts + 2*grat_pts);  % number of grid points perpendicular to trajectory
  
 nx = floor(Nx/2);
 ny = floor(Ny/2);
@@ -75,9 +77,13 @@ for min_G_Emax = (0:1)
     xs = dlx*(1:Nx);                        % constant to compute the eta object.  x-pos along gap.
 
     delta_device = zeros(Nx,Ny);            % delta_device is 0 where the permittivity doesn't change.  otherwise it is 1 in the optimization region.
-    delta_device(1:Nx, pos_src + spc_pts : pos_src + spc_pts + Lpts) = 1;
-    delta_device(1:Nx, pos_src + spc_pts + Lpts + gap_pts : pos_src + spc_pts + Lpts + gap_pts + Lpts) = 1;
+    delta_device(1:Nx, pos_src + spc_pts + grat_pts: pos_src + spc_pts + grat_pts + Lpts) = 1;
+    delta_device(1:Nx, pos_src + spc_pts + 3*grat_pts + Lpts + gap_pts : pos_src + spc_pts + 3*grat_pts + Lpts + gap_pts + Lpts) = 1;    
     delta_device_vec = delta_device(:);     % vector version of delta_device (matlab likes this better)
+    
+    delta_start = zeros(Nx,Ny);            % delta_device is 0 where the permittivity doesn't change.  otherwise it is 1 in the optimization region.
+    delta_start(1:Nx, pos_src + spc_pts: pos_src + spc_pts + 2*grat_pts + Lpts) = 1;
+    delta_start(1:Nx, pos_src + spc_pts + 2*grat_pts + Lpts + gap_pts : pos_src + spc_pts + 4*grat_pts + Lpts + gap_pts + Lpts) = 1;
     
     % define the eta vector field.  see the paper for more details.
     eta = zeros(Nx,Ny);  
@@ -88,11 +94,12 @@ for min_G_Emax = (0:1)
     % holds
     for i = (1:Nx)
         for j = (1:Ny)
-            if (delta_device(i,j) == 1)
+            if (delta_start(i,j) == 1)
                 if (starting == 1)
                     ER(i,j) = rand*(eps-1)+1;
                 elseif (starting == 2)                
-                    ER(i,j) = eps/2+0.5;
+                    ER(i,j) = eps;                    
+                    ER(i,j) = eps;                    
                 else
                 end
             end
@@ -227,7 +234,7 @@ for min_G_Emax = (0:1)
         G_by_Sa(j) = G/Sa;
 
         % update permittivity
-        ER = ER + alpha*AVM + alpha*gamma*AVM_prev;
+        ER = ER + alpha*AVM*exp(-G) + alpha*gamma*AVM_prev;
 
         % update the previous sensitivity map
         AVM_prev = AVM;

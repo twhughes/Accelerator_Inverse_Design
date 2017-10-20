@@ -8,17 +8,17 @@ skip = 4;                                   % number of iteration frames between
 display_plots = true;                       % plotting during the run?
 
 
-alpha = 5e2;                                % step size in permittivity (~1e2-1e4 works well)
+alpha = 1e3;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 500;                                   % number of iterations
+N = 5000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
 starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
-grids_in_lam = 50;                         % number of grid points in a free space wavelength
+grids_in_lam = 100;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
-L = 1.0;                                      % size of optimization region (um)
+L = 2.0;                                      % size of optimization region (um)
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
 % can diverge.  This is because there are many degrees of freedom and
 % resonance can occur very strongly. Need to try different values and see
@@ -28,12 +28,12 @@ npml = 10;                                  % number of PML (absorbing region) p
 % relative permittivity of material region.  uncomment to select
 eps = 3.4363^2;     % Si 2um
 %eps = 1.4381^2;      % fused silica 2um
-eps = 1.9834^2;     % Si3N4
+%eps = 1.9834^2;     % Si3N4
 %eps = 1.9^2;        % GaOx
 
 nmax = sqrt(eps);    % refractive index of material region
 
-gamma = 1*0.9;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
+gamma = 1*0.999;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
 
 %% SET OTHER CONSTANTS (DON'T CHANGE)
 dlx = lambda0/grids_in_lam;                 % grid size along electron trajectory axis
@@ -116,7 +116,7 @@ for min_G_Emax = (0:1)
 
     phis = zeros(N,1);          % phase of the maximum accelerating input plane wave
     phi = 0;                    % assume input light phase of 0 to start
-    AVM_prev = zeros(Nx,Ny);    % store previous sensitivity information for momentum update
+    v_AVM = zeros(Nx,Ny);    % store previous sensitivity information for momentum update
 
     figure(1);                  % open a figure to plot
     
@@ -227,10 +227,10 @@ for min_G_Emax = (0:1)
         G_by_Sa(j) = G/Sa;
 
         % update permittivity
-        ER = ER + alpha*AVM + alpha*gamma*AVM_prev;
+        v_AVM = gamma*v_AVM + (1-gamma)*AVM;
+        ER = ER + alpha*v_AVM;
 
         % update the previous sensitivity map
-        AVM_prev = AVM;
 
         % if permittivity out of bounds, reset inside the correct bounds.
         ER(ER < 1) = 1;
