@@ -11,7 +11,7 @@ display_plots = true;                       % plotting during the run?
 alpha = 1e-1;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
 beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 5000;                                   % number of iterations
+N = 2000;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
 starting = 0;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
@@ -33,8 +33,8 @@ eps = 3.4363^2;     % Si 2um
 
 nmax = sqrt(eps);    % refractive index of material region
 
-beta1 = 0.9;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
-beta2 = 0.999;
+beta1 = 0.9;                             % momentum term, see paper.  Set around 0.9
+beta2 = 0.999;                           % RMSprop update term.  Keep around 0.999
 %% SET OTHER CONSTANTS (DON'T CHANGE)
 dlx = lambda0/grids_in_lam;                 % grid size along electron trajectory axis
 dly  = dlx;                                 % spacing in the perpendicular direction

@@ -4,22 +4,22 @@ addpath(genpath('./'));                     % add the whole directory to path, i
 c0 = 1;                                     % speed of light m/s (normalized to 1)
 lambda0 = 2;                                % central wavelength (um)
 
-skip = 4;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
+skip = 1;                                   % number of iteration frames between plots (higher->faster, lower->more plots)
 display_plots = true;                       % plotting during the run?
 
 
-alpha = 1e0;                                % step size in permittivity (~1e2-1e4 works well)
+alpha = 0.2;                                % step size in permittivity (~1e2-1e4 works well)
 a = 1;                                     % smooth-max weight factor (see paper)
-beta = 0.5;                                 % ratio of electron speed to speed of light
-N = 50000;                                   % number of iterations
+beta = 1;                                 % ratio of electron speed to speed of light
+N = 200;                                   % number of iterations
 
 in_material = false;                        % evaluate E_max in material? or in surrounding regions. (NOTE: it doesn't work well, I would suggest just evaluating in optimization region)
 starting = 2;                               % 0 -> vacuum, 1 -> random, 2 -> midway epsilon
 
 grids_in_lam = 50;                         % number of grid points in a free space wavelength
 gap_nm       = 400;                         % gap size in nm
-L = 1.0;                                      % size of optimization region (um)
-grating_width_nm = 20;
+L = 1.2;                                      % size of optimization region (um)
+grating_width_nm = 10;
 % NOTE: if this ^ is too big and the epsilon is too large, the simulations
 % can diverge.  This is because there are many degrees of freedom and
 % resonance can occur very strongly. Need to try different values and see
@@ -29,13 +29,15 @@ npml = 10;                                  % number of PML (absorbing region) p
 % relative permittivity of material region.  uncomment to select
 eps = 3.4363^2;     % Si 2um
 %eps = 1.4381^2;      % fused silica 2um
-%eps = 1.9834^2;     % Si3N4
+eps = 1.9834^2;     % Si3N4
 %eps = 1.9^2;        % GaOx
 
 nmax = sqrt(eps);    % refractive index of material region
 
-gamma = 0*0.9999999;                             % 'momentum term', see paper.  Set between 0-1, can speed up simulation in some cases
+optimize = 'adam';                            % one of 'GD', 'momentum', 'RMSprop', 'adam'
 
+beta1 = 0.9;                             % momentum term, see paper.  Set around 0.9
+beta2 = 0.999;                           % RMSprop update term.  Keep around 0.999
 %% SET OTHER CONSTANTS (DON'T CHANGE)
 dlx = lambda0/grids_in_lam;                 % grid size along electron trajectory axis
 dly  = dlx;                                 % spacing in the perpendicular direction
@@ -53,7 +55,7 @@ nx = floor(Nx/2);
 ny = floor(Ny/2);
     
 % First compute G maximization, then do G/E_max maximization (for comparison)
-for min_G_Emax = (0:1)
+for min_G_Emax = (0:0)
     
     %% This section defines the input parameters that my FDFD code needs to run.
     %  see the FDFD.m code or FDFD_TFSF.m for a more detailed explanation.
@@ -64,7 +66,7 @@ for min_G_Emax = (0:1)
     A_best = 0;
 
     b = zeros(Nx,Ny);                       % TFSF map.  read up on total-field scattered-field if you are interested.
-    b(:, pos_src:pos_src + spc_pts + Lpts + gap_pts + Lpts + spc_pts) = 1;  % define the total field region on the grid
+    b(:, pos_src:pos_src + spc_pts + Lpts + gap_pts + Lpts + spc_pts + 4* grat_pts) = 1;  % define the total field region on the grid
     kinc = [0,1];                           % plane wave incident direction (perp. to electron)
 
     RES = [dlx,dly];                        % grid resolution vector
@@ -133,6 +135,9 @@ for min_G_Emax = (0:1)
         display('working on acceleration factor maximized structure');
     end    
     upd = textprogressbar(N);
+    
+    v_AVM = zeros(Nx,Ny);    % store previous sensitivity information for momentum update
+    s_AVM = zeros(Nx,Ny);    % store previous sensitivity information for momentum update
     
     for j = (1:N)
 
@@ -234,8 +239,23 @@ for min_G_Emax = (0:1)
         G_by_Sa(j) = G/Sa;
 
         % update permittivity
-        ER = ER + alpha*AVM*exp(-G) + alpha*gamma*AVM_prev;
-
+        if strcmp(optimize,'adam')
+            v_AVM = beta1*v_AVM + (1-beta1)*AVM;
+            s_AVM = beta2*s_AVM + (1-beta2)*(AVM.^2);        
+            v_AVM_norm = v_AVM/(1-beta1^j);
+            s_AVM_norm = s_AVM/(1-beta2^j);        
+            ER = ER + alpha*v_AVM_norm./(sqrt(s_AVM_norm) + 1e-8);
+        elseif strcmp(optimize,'momentum')
+            v_AVM = alpha*AVM + beta1*v_AVM;
+            ER = ER + v_AVM;
+        elseif strcmp(optimize,'RMSprop')
+            s_AVM = beta2*s_AVM + (1-beta2)*(AVM.^2);
+            ER = ER + (alpha*AVM./(sqrt(s_AVM) + 1e-8)).*delta_device;
+        elseif strcmp(optimize,'GD')
+            ER = ER + alpha*AVM;
+        else
+            error('optimize must be one of GD, RMSprop, momentum, adam')
+        end
         % update the previous sensitivity map
         AVM_prev = AVM;
 
@@ -360,6 +380,7 @@ for min_G_Emax = (0:1)
     end
 end
 
+%%
 % display the percent improvements (in optimization regions and in
 % materials)
 perc_improvement = (n_p-n_o)/n_o*100;
