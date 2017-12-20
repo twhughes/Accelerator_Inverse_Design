@@ -1,5 +1,7 @@
 # DLA Optimization Software
 
+![alt text](https://github.com/twhughes/DLA-Structure-Optimization/blob/master/images/before.png "Logo Title Text 1")
+
 ## Contents
 This matlab program is used to generate optimized dielectric laser accelerator structures.
 
@@ -16,6 +18,8 @@ The optimization procedure is as follows:
 Code allows for gradient ascent, RMS prop, gradient ascent with momentum, and Adam optimization algorithms.
 
 Can be used to optimize free-space coupled structures, buried gratings, or waveguide coupled structures.
+
+![alt text](https://github.com/twhughes/DLA-Structure-Optimization/blob/master/images/after.png "Logo Title Text 1")
 
 ## Paper information
 This code was used in work related to this paper:
